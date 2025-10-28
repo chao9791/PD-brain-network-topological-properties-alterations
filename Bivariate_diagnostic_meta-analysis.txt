@@ -1,0 +1,121 @@
+**************************************************************************
+* Data Import
+**************************************************************************
+
+* Clear all the data and reset the Stata workspace
+clear 
+
+* Change the working directory to the folder containing the data file
+cd "data_path"
+
+* Import data
+import excel "data.xlsx", firstrow clear
+
+* Perform zero correction
+gen has_zero = (tp == 0 | fp == 0 | fn == 0 | tn == 0)
+gen tp_adj = cond(has_zero, tp + 0.5, tp)
+gen fp_adj = cond(has_zero, fp + 0.5, fp)
+gen fn_adj = cond(has_zero, fn + 0.5, fn)
+gen tn_adj = cond(has_zero, tn + 0.5, tn)
+
+**************************************************************************
+* Diagnostic Meta-Analysis
+**************************************************************************
+
+* Perform a summary diagnostic meta-analysis using adjusted variables
+midas tp_adj fp_adj fn_adj tn_adj, res(sum)
+
+* Plot a forest plot of sensitivity and specificity
+midas tp_adj fp_adj fn_adj tn_adj, id(Study) ms(0.75) ford fors bfor(dss)
+
+* Plot the summary receiver operating characteristic (SROC) curve
+midas tp_adj fp_adj fn_adj tn_adj, plot sroc(both)
+
+* Detect publication bias
+midas tp_adj fp_adj fn_adj tn_adj, pubbias
+
+**************************************************************************
+* Exploratory Analysis for Highest and Lowest Performers
+**************************************************************************
+
+* Diagnostic analysis for highest performance
+midas tp_adj fp_adj fn_adj tn_adj if Max_ACC == 1, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if Max_ACC == 1, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if Max_ACC == 1, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if Max_ACC == 1, pubbias
+
+* Diagnostic analysis for lowest performance
+midas tp_adj fp_adj fn_adj tn_adj if Min_ACC == 1, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if Min_ACC == 1, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if Min_ACC == 1, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if Min_ACC == 1, pubbias
+
+**************************************************************************
+* Meta-Regression Analysis
+**************************************************************************
+
+* Binary Variable Transformation
+gen Threshold_binary = .
+replace Threshold_binary = 1 if Threshold == "proportion"
+replace Threshold_binary = 0 if Threshold == "non-proportion"
+
+gen Algorithm_binary = .
+replace Algorithm_binary = 1 if Algorithm == "AI"
+replace Algorithm_binary = 0 if Algorithm == "ROC Analysis"
+
+gen ImagingTechnology_binary = .
+replace ImagingTechnology_binary = 1 if Imaging_Technology == "Functional Imaging"
+replace ImagingTechnology_binary = 0 if Imaging_Technology == "Structural Imaging"
+
+gen FeatureSelection_binary = .
+replace FeatureSelection_binary = 1 if Feature_Selection == "Only GTA"
+replace FeatureSelection_binary = 0 if Feature_Selection == "Mixed features"
+
+recast byte Threshold_binary
+recast byte Algorithm_binary
+recast byte ImagingTechnology_binary
+recast byte FeatureSelection_binary
+
+* Perform meta-regression analysis
+midas tp fp fn tn, reg(Algorithm_binary ImagingTechnology_binary FeatureSelection_binary Threshold_binary)
+
+
+* Grouped Diagnostic Meta-Analysis
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 1, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 0, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 1, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 0, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 1, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 0, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 1, res(sum)
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 0, res(sum)
+
+* Plot SROC Curves for Subgroups
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 1, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 0, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 1, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 0, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 1, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 0, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 1, plot sroc(both)
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 0, plot sroc(both)
+
+* Plot Forest Plots for Subgroups
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 1, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 0, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 1, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 0, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 1, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 0, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 1, id(Study) ms(0.75) ford fors bfor(dss)
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 0, id(Study) ms(0.75) ford fors bfor(dss)
+
+* Detect Publication Bias for Subgroups
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 1, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if Threshold_binary == 0, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 1, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if Algorithm_binary == 0, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 1, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if ImagingTechnology_binary == 0, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 1, pubbias
+midas tp_adj fp_adj fn_adj tn_adj if FeatureSelection_binary == 0, pubbias
